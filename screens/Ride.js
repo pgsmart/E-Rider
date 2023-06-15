@@ -34,7 +34,12 @@ export default class RideScreen extends Component {
       bikeAssigned: "",
       bikeAvailable: "",
       color1: '#fab1b1',
-      color2: '#940909'
+      color2: '#940909',
+      color3: '#fab1b1',
+      color4: '#940909',
+      userFound: false,
+      userId2: '',
+      message: 'Hello!'
     };
   }
 
@@ -96,8 +101,36 @@ export default class RideScreen extends Component {
         }
   };
 
+  getUserState = async (text) => {
+    this.setState({
+      userFound: false,
+      userId2: '',
+      color3: '#fab1b1',
+      color4: '#940909',
+      userName: ''
+    })
+    var dbQuery = query(collection(db,'users'))
+    var users = await getDocs(dbQuery)
+    users.forEach((doc)=>{
+      var userData = doc.data()
+      if(text === userData['id']){
+        this.setState({
+          userFound: true,
+          userId2: text,
+          color3: '#a0f799',
+          color4: '#0b7002',
+          userName: userData['name']
+        })
+      }
+    })
+  }
+
   getBikeState = async (text) => {
-    
+    this.setState({
+      bikeAvailable: "",
+      color1: '#fab1b1',
+      color2: '#940909'
+    })
     var dbQuery = query(collection(db,'bicycles'),where('id','==',text))
     var bikeDetails = await getDocs(dbQuery)
     bikeDetails.forEach((doc)=>{
@@ -107,10 +140,6 @@ export default class RideScreen extends Component {
         bikeAvailable: bike['is_bike_available'],
         color1: '#a0f799',
         color2: '#0b7002'
-      })
-     }else {
-      this.setState({
-        bikeAvailable: ""
       })
      }
      
@@ -206,7 +235,8 @@ export default class RideScreen extends Component {
           <View style={styles.textinputContainer}>
             <TextInput
               style={[styles.textinput, { width: '82%' }]}
-              onChangeText={(text) => this.setState({ userId: text })}
+              onChangeText={(text) => {this.setState({ userId: text })
+              this.getUserState(text)}}
 
               placeholder={'User Id'}
               placeholderTextColor={'#FFFFFF'}
@@ -230,6 +260,12 @@ export default class RideScreen extends Component {
           </View>
           <View style={[styles.bikeTextContainer,{backgroundColor : this.state.color1, borderColor: this.state.color2}]}>
           <Text style={[styles.bikeText,{color:this.state.color2}]}>{this.state.bikeAvailable ? 'Bike Available!' : 'Bike Not-Available'}</Text>
+          </View>
+          <View style={[styles.bikeTextContainer,{backgroundColor : this.state.color3, borderColor: this.state.color4}]}>
+          <Text style={[styles.bikeText,{color:this.state.color4}]}>{this.state.userFound ? 'User Found!' : 'User Not Found'}</Text>
+          </View>
+          <View>
+            <Text>{this.state.userFound ? 'Welcome, ' + this.state.userName + '!': 'Please enter your information above'  }</Text>
           </View>
             <TouchableOpacity
             style={[styles.button, { marginTop: 25 }]}

@@ -12,7 +12,6 @@ const Tab = createBottomTabNavigator();
 export default class BottomTabNavigator extends Component {
   render() {
     return (
-      <NavigationContainer>
         <Tab.Navigator
           screenOptions={({ route }) => ({
             tabBarIcon: ({ focused, color, size }) => {
@@ -55,7 +54,6 @@ export default class BottomTabNavigator extends Component {
           <Tab.Screen name="Ride" component={RideScreen} />
           <Tab.Screen name="Ride History" component={RideHistoryScreen} />
         </Tab.Navigator>
-      </NavigationContainer>
     );
   }
 }

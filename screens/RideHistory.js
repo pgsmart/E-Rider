@@ -1,11 +1,178 @@
 import React, { Component } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import {
+  View,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Text,
+  FlatList,
+} from "react-native";
+import db from "../config";
+import {Timestamp,collection,query,where,getDocs, CollectionReference,updateDoc,addDoc,increment,doc,limit} from 'firebase/firestore'
+import { ListItem,Icon} from 'react-native-elements';
 
 export default class RideHistoryScreen extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      allTransactions: [],
+      lastVisibleTransaction: null,
+      searchText: ""
+    };
+  }
+  componentDidMount = async () => {
+    this.getTransactions();
+  };
+
+  getTransactions = async () => {
+    var dbQuery = query(collection(db,'transactions'))
+    var transactions = await getDocs(dbQuery)
+    
+    transactions.forEach((doc)=>{
+      var transaction_data = doc.data()
+      console.log(doc.data())
+      this.setState({
+        allTransactions: [...this.state.allTransactions, doc.data()],
+        lastVisibleTransaction: doc
+      });
+      console.log(this.state.allTransactions)
+    })
+  };
+
+  handleSearch = async bikeId => {
+    bikeId = bikeId.toUpperCase().trim();
+    this.setState({
+      allTransactions: []
+    });
+    if (!bikeId) {
+      this.getTransactions();
+    }
+
+    dbQuery = query(collection(db,"transactions"),where("bike_id", "==", bikeId))
+    var transactions = await getDocs(dbQuery)
+    
+    transactions.forEach((doc)=>{
+      this.setState({
+        allTransactions: [...this.state.allTransactions, doc.data()],
+        lastVisibleTransaction: doc
+      });
+    })
+
+  };
+
+  fetchMoreTransactions = async bikeId => {
+    bikeId = bikeId.toUpperCase().trim();
+
+    const { lastVisibleTransaction, allTransactions } = this.state;
+    const dbquery = query(collection(db,"transactions"),where("bike_id", "==", bikeId),startAfter(lastVisibleTransaction),limit(10))
+    var transactions = await getDocs(dbquery)
+    transactions.forEach((doc)=>{
+      this.setState({
+        allTransactions: [...this.state.allTransactions, doc.data()],
+        lastVisibleTransaction: doc
+      });
+    })
+  };
+
+  renderItem1 = ({item}) =>{
+    return(
+      <View>
+        <Text>{item.bike_id} + {item.bike_type} + {item.transaction_type}
+        </Text>
+      </View>
+    )
+  }
+
+  renderItem = ({ item, i }) => {
+   var date = item.date
+      .toDate()
+      .toString()
+      .split(" ")
+      .splice(0, 4)
+      .join(" ");
+
+    var transactionType =
+      item.transaction_type === "rented" ? "rented" : "returned";
+    return (
+      <View style={{ borderWidth: 1 }}>
+        <Icon type={"ionicon"} name={"bicycle"} size={40} />
+        <ListItem key={i} bottomDivider>
+          <ListItem.Content>
+        
+            <ListItem.Title style={styles.title}>
+              {`${item.bike_type} ( ${item.bike_id} )`}
+            </ListItem.Title>
+            <ListItem.Subtitle style={styles.subtitle}>
+              {`This bike is ${transactionType} by you.`}
+            </ListItem.Subtitle>
+            <View style={styles.lowerLeftContaiiner}>
+              <View style={styles.transactionContainer}>
+                <Text
+                  style={[
+                    styles.transactionText,
+                    {
+                      color:
+                        item.transaction_type === "rented"
+                          ? "#78D304"
+                          : "#0364F4"
+                    }
+                  ]}
+                >
+                  {item.transaction_type.charAt(0).toUpperCase() +
+                    item.transaction_type.slice(1)}
+                </Text>
+                <Icon
+                  type={"ionicon"}
+                  name={
+                    item.transaction_type === "rented"
+                      ? "checkmark-circle-outline"
+                      : "arrow-redo-circle-outline"
+                  }
+                  color={
+                    item.transaction_type === "rented" ? "#78D304" : "#0364F4"
+                  }
+                />
+                   
+              </View>
+              <Text style={styles.date}>{date}</Text>
+              </View>
+             
+            </ListItem.Content>
+              </ListItem>
+      </View>
+            );
+  };
+
   render() {
+    const { searchText, allTransactions } = this.state;
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>Ride History Screen</Text>
+        <View style={styles.upperContainer}>
+          <View style={styles.textinputContainer}>
+            <TextInput
+              style={styles.textinput}
+              onChangeText={text => this.setState({ searchText: text })}
+              placeholder={"Type here"}
+              placeholderTextColor={"#FFFFFF"}
+            />
+            <TouchableOpacity
+              style={styles.scanbutton}
+              onPress={() => this.handleSearch(searchText)}
+            >
+              <Text style={styles.scanbuttonText}>Search</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.lowerContainer}>
+          <FlatList
+            data={allTransactions}
+            renderItem={this.renderItem}
+            keyExtractor={(item, index) => index.toString()}
+            onEndReached={() => 
+              this.fetchMoreTransactions(searchText)}
+            onEndReachedThreshold={0.7}
+          />
+        </View>
       </View>
     );
   }
@@ -14,12 +181,74 @@ export default class RideHistoryScreen extends Component {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
     backgroundColor: "#D0E6F0"
   },
-  text: {
+  upperContainer: {
+    flex: 0.2,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  textinputContainer: {
+    borderWidth: 2,
+    borderRadius: 10,
+    flexDirection: "row",
+    backgroundColor: "#4C5D70",
+    borderColor: "#4C5D70"
+  },
+  textinput: {
+    width: "57%",
+    height: 50,
+    padding: 10,
+    borderColor: "#4C5D70",
+    borderRadius: 10,
+    borderWidth: 3,
+    fontSize: 18,
+    backgroundColor: "#F88379",
+    fontFamily: "Rajdhani_600SemiBold",
+    color: "#FFFFFF"
+  },
+  scanbutton: {
+    width: 100,
+    height: 50,
+    backgroundColor: "#FBE5C0",
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  scanbuttonText: {
+    fontSize: 24,
     color: "#4C5D70",
-    fontSize: 30
+    fontFamily: "Rajdhani_600SemiBold"
+  },
+  lowerContainer: {
+    flex: 0.8,
+    backgroundColor: "#FBE5C0"
+  },
+  title: {
+    fontSize: 20,
+    fontFamily: "Rajdhani_600SemiBold"
+  },
+  subtitle: {
+    fontSize: 16,
+    fontFamily: "Rajdhani_600SemiBold"
+  },
+  lowerLeftContaiiner: {
+    alignSelf: "flex-end",
+    marginTop: -40
+  },
+  transactionContainer: {
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    alignItems: "center"
+  },
+  transactionText: {
+    fontSize: 20,
+    fontFamily: "Rajdhani_600SemiBold"
+  },
+  date: {
+    fontSize: 12,
+    fontFamily: "Rajdhani_600SemiBold",
+    paddingTop: 5
   }
 });
